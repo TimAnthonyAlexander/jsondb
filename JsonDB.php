@@ -1,9 +1,8 @@
 <?php
 
-namespace FEVER\backend\module;
+namespace JsonDB;
 
-use FEVER\api\exceptions\ApiException;
-use FEVER\api\module\ApiClient;
+
 use JsonException;
 
 class JsonDB
@@ -12,6 +11,9 @@ class JsonDB
     {
     }
 
+    /**
+     * @throws JsonException
+     */
     public function change(string $idCol, string $idVal, string $column, mixed $value): void
     {
         $content = $this->load();
@@ -63,6 +65,9 @@ class JsonDB
         return $descending ? array_reverse($data) : $data;
     }
 
+    /**
+     * @throws JsonException
+     */
     public function exists(string $idCol, string $idVal): bool
     {
         $content = $this->load();
@@ -77,7 +82,6 @@ class JsonDB
     }
 
     /**
-     * @throws ApiException
      * @throws JsonException
      */
     public function changeSelect(string $idCol, string $idVal, array $data): void
@@ -113,6 +117,9 @@ class JsonDB
         $this->save($content);
     }
 
+    /**
+     * @throws JsonException
+     */
     public function delete(string $idCol, string $idVal): void
     {
         $content    = $this->load();
@@ -125,11 +132,17 @@ class JsonDB
         $this->save($newContent);
     }
 
+    /**
+     * @throws JsonException
+     */
     public function deleteAll(): void
     {
         $this->save([]);
     }
 
+    /**
+     * @throws JsonException
+     */
     public function get(string $idCol, string $idVal): array
     {
         $content = $this->load();
@@ -141,11 +154,17 @@ class JsonDB
         return [];
     }
 
+    /**
+     * @throws JsonException
+     */
     public function getContent(): array
     {
         return $this->load();
     }
 
+    /**
+     * @throws JsonException
+     */
     public function getSelect(string $idCol, string $idVal, string ...$columns): array
     {
         $content = $this->load();
@@ -241,14 +260,12 @@ class JsonDB
     }
 
     /**
-     * @throws JsonException|\FEVER\api\exceptions\ApiException
+     * @throws JsonException
      */
     private function save(array $content): void
     {
         $filename = __DIR__ . '/../../tables/' . $this->table . '.json';
 
-        ApiClient::getEnv() === 0
-            ? file_put_contents($filename, json_encode($content, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT))
-            : file_put_contents($filename, json_encode($content, JSON_THROW_ON_ERROR));
+        file_put_contents($filename, json_encode($content, JSON_THROW_ON_ERROR));
     }
 }
