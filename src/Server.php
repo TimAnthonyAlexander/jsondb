@@ -10,11 +10,33 @@ class Server
 
     public function work(bool $actuallyWork = true): void
     {
-        while(true) {
-            for ($i = 1; $i <= 10; $i++) {
-                for ($j = 1; $j <= $i; $j++) {
-                    $this->workOnPriority($j, $actuallyWork);
+        while (true) {
+            if (!file_exists(__DIR__ . '/../queue')) {
+                if (!mkdir($concurrentDirectory = __DIR__ . '/../queue', 0777, true) && !is_dir($concurrentDirectory)) {
+                    throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
                 }
+            }
+            $files = glob(__DIR__ . '/../queue/*.json');
+
+            // Remove . and .. from the array
+            $files = array_diff($files, ['.', '..']);
+
+            // Work on each file depending on name (timestamp)
+            // Work on the lowest/oldest timestamp first
+            sort($files);
+
+            foreach ($files as $file) {
+                if (in_array($file, $this->filesWorkedOn, true)) {
+                    continue;
+                }
+
+                $fileContent = file_get_contents($file);
+                while($fileContent === '') {}
+
+                $this->filesWorkedOn[] = $file;
+
+                $this->workOnFile($fileContent, $actuallyWork);
+                unlink($file);
             }
         }
     }
@@ -24,42 +46,18 @@ class Server
         $this->work(false);
     }
 
-    private function workOnPriority(int $priority, bool $actuallyWork): void
-    {
-        $files = glob(__DIR__.sprintf('/../queue/%d/*.json', $priority));
-
-        // Remove . and .. from the array
-        $files = array_diff($files, ['.', '..']);
-
-        // Work on each file depending on name (timestamp)
-        // Work on the lowest/oldest timestamp first
-        sort($files);
-
-        foreach ($files as $file) {
-            if (in_array($file, $this->filesWorkedOn, true)) {
-                continue;
-            }
-
-            $this->filesWorkedOn[] = $file;
-
-            $this->workOnFile($file, $actuallyWork);
-            print "Working on file $file" . PHP_EOL;
-        }
-    }
-
     /**
      * @throws \JsonException
      */
-    private function workOnFile(string $file, bool $actuallyWork): void
+    private function workOnFile(string $fileContent, bool $actuallyWork): void
     {
-        $fileContent = json_decode(file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+        $fileContent = json_decode($fileContent, true, 512, JSON_THROW_ON_ERROR);
 
         $table  = $fileContent['table'];
         $data   = $fileContent['data'];
 
         if ($actuallyWork) {
             $this->execute($table, $data);
-            unlink($file);
         }
     }
 

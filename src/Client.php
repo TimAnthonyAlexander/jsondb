@@ -21,19 +21,13 @@ class Client
     public function add(
         string $table,
         array $data,
-        int $priority = 10
     ): Promise {
-        $prioFolder = $this->queueFolder . '/' . $priority;
-        if(!file_exists($prioFolder) && !mkdir($prioFolder, 0777, true) && !is_dir($prioFolder)) {
-            throw new \RuntimeException(sprintf('Directory "%s" was not created', $prioFolder));
-        }
-
-        $fileName = sprintf($prioFolder . '/%s.json', self::generateTimestamp());
+        $fileName = sprintf($this->queueFolder . '/%s.json', self::generateTimestamp());
         while(file_exists($fileName)) {
-            $fileName = sprintf($prioFolder . '/%s.json', self::generateTimestamp());
+            $fileName = sprintf($this->queueFolder . '/%s.json', self::generateTimestamp());
         }
 
-        $file = fopen($fileName, 'ab');
+        $file = fopen($fileName, 'wb');
         fwrite($file, json_encode(
             [
                 'table'  => $table,

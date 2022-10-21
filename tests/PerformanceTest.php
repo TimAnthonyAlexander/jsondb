@@ -58,5 +58,7 @@ class PerformanceTest extends TestCase
         $dog->deleteCertain(...$temp);
 
         self::assertGreaterThan(0, $iterations);
+
+        print("Iterations: $iterations" . PHP_EOL);
     }
 }
