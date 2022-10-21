@@ -1,0 +1,20 @@
+{
+    "name": "timprojekt/json-db",
+    "require": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "classmap": [
+            "src/"
+        ]
+    },
+    "scripts": {
+        "test": "php vendor/bin/phpunit tests"
+    },
+    "authors": [
+        {
+            "name": "TimAnthonyAlexander",
+            "email": "github@timanthonyalexander.de"
+        }
+    ]
+}

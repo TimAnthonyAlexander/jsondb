@@ -18,19 +18,6 @@ class JsonDB
     }
 
     /**
-     * @return array
-     */
-    public static function getTables(): array
-    {
-        return array_map(
-            static function (array $table) {
-                return $table['tableName'];
-            },
-            $tables
-        );
-    }
-
-    /**
      * @param string $idCol
      * @param string $idVal
      * @param string $column
@@ -250,12 +237,29 @@ class JsonDB
         return [];
     }
 
+    public function deleteCertain(string ...$ids): void
+    {
+        $content = $this->load();
+        foreach ($content as $rowId => $row) {
+            if (in_array($row['id'], $ids, true)) {
+                unset($content[$rowId]);
+            }
+        }
+        $this->save($content);
+    }
+
     /**
      * @throws JsonException
      */
     private function load(): array
     {
-        $filename = __DIR__ . '/../../tables/' . $this->table . '.json';
+        $dirname = __DIR__ . '/../tables/';
+        if (!file_exists($dirname)) {
+            if (!mkdir($dirname) && !is_dir($dirname)) {
+                throw new \RuntimeException(sprintf('Directory "%s" was not created', $dirname));
+            }
+        }
+        $filename = __DIR__ . '/../tables/' . $this->table . '.json';
         if (!file_exists($filename)) {
             file_put_contents($filename, '[]');
         }
@@ -350,7 +354,7 @@ class JsonDB
 
     private function save(array $content): void
     {
-        $filename = __DIR__ . '/../../tables/' . $this->table . '.json';
+        $filename = __DIR__ . '/../tables/' . $this->table . '.json';
         file_put_contents($filename, json_encode($content, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
         $this->clearCache();
     }

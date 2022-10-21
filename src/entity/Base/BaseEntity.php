@@ -210,6 +210,11 @@ abstract class BaseEntity
         $this->jsonDB->deleteAll();
     }
 
+    public function deleteCertain(string ...$ids): void
+    {
+        $this->jsonDB->deleteCertain(...$ids);
+    }
+
     /**
      * @return array
      */
