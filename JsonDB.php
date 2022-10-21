@@ -1,17 +1,41 @@
 <?php
 
-namespace JsonDB;
+/*
+ * Copyright (c) 2022 5ever.
+ */
 
+namespace src;
 
 use JsonException;
 
 class JsonDB
 {
-    public function __construct(private string $table)
+    /**
+     * @param string $table
+     */
+    public function __construct(public readonly string $table)
     {
     }
 
     /**
+     * @return array
+     */
+    public static function getTables(): array
+    {
+        return array_map(
+            static function (array $table) {
+                return $table['tableName'];
+            },
+            $tables
+        );
+    }
+
+    /**
+     * @param string $idCol
+     * @param string $idVal
+     * @param string $column
+     * @param mixed $value
+     * @return void
      * @throws JsonException
      */
     public function change(string $idCol, string $idVal, string $column, mixed $value): void
@@ -32,6 +56,12 @@ class JsonDB
         }
     }
 
+    /**
+     * @param string $column
+     * @param array $data
+     * @param bool $descending
+     * @return array
+     */
     public static function sortByInt(string $column, array $data, bool $descending = true): array
     {
         usort(
@@ -43,6 +73,12 @@ class JsonDB
         return $descending ? array_reverse($data) : $data;
     }
 
+    /**
+     * @param string $column
+     * @param array $data
+     * @param bool $descending
+     * @return array
+     */
     public static function sortByDate(string $column, array $data, bool $descending = true): array
     {
         usort(
@@ -54,6 +90,12 @@ class JsonDB
         return $descending ? array_reverse($data) : $data;
     }
 
+    /**
+     * @param string $column
+     * @param array $data
+     * @param bool $descending
+     * @return array
+     */
     public static function sortByString(string $column, array $data, bool $descending = true): array
     {
         usort(
@@ -66,6 +108,9 @@ class JsonDB
     }
 
     /**
+     * @param string $idCol
+     * @param string $idVal
+     * @return bool
      * @throws JsonException
      */
     public function exists(string $idCol, string $idVal): bool
@@ -82,6 +127,7 @@ class JsonDB
     }
 
     /**
+     * @throws BackendException
      * @throws JsonException
      */
     public function changeSelect(string $idCol, string $idVal, array $data): void
@@ -105,9 +151,6 @@ class JsonDB
         $this->add($idCol, $idVal, $data);
     }
 
-    /**
-     * @throws JsonException
-     */
     public function add(string $idCol, string $idVal, array $data): void
     {
         $data[$idCol] = $idVal;
@@ -118,6 +161,9 @@ class JsonDB
     }
 
     /**
+     * @param string $idCol
+     * @param string $idVal
+     * @return void
      * @throws JsonException
      */
     public function delete(string $idCol, string $idVal): void
@@ -133,6 +179,7 @@ class JsonDB
     }
 
     /**
+     * @return void
      * @throws JsonException
      */
     public function deleteAll(): void
@@ -141,11 +188,29 @@ class JsonDB
     }
 
     /**
+     * @return void
+     */
+    public function clearCache(): void
+    {
+        InstantCache::delete('jsondb_' . $this->table);
+    }
+
+    /**
+     * @param string $idCol
+     * @param string $idVal
+     * @param bool $useCache
+     * @return array
      * @throws JsonException
      */
-    public function get(string $idCol, string $idVal): array
+    public function get(string $idCol, string $idVal, bool $useCache = false): array
     {
-        $content = $this->load();
+        if ($useCache && InstantCache::isset('jsondb_' . $this->table)) {
+            $content = InstantCache::get('jsondb_' . $this->table);
+        } else {
+            $content = $this->load();
+            InstantCache::set('jsondb_' . $this->table, $content);
+        }
+
         foreach ($content as $row) {
             if ($row[$idCol] === $idVal) {
                 return $row;
@@ -155,6 +220,7 @@ class JsonDB
     }
 
     /**
+     * @return array
      * @throws JsonException
      */
     public function getContent(): array
@@ -163,6 +229,10 @@ class JsonDB
     }
 
     /**
+     * @param string $idCol
+     * @param string $idVal
+     * @param string ...$columns
+     * @return array
      * @throws JsonException
      */
     public function getSelect(string $idCol, string $idVal, string ...$columns): array
@@ -199,21 +269,33 @@ class JsonDB
         return json_decode($content, true, 512, JSON_THROW_ON_ERROR);
     }
 
+    /**
+     * @param array $where
+     * @param bool $allowLike
+     * @param bool $sortBy
+     * @param string $sortByColumn
+     * @param string $sortByType
+     * @param bool $descending
+     * @param bool $whereIsAnd
+     * @return array
+     * @throws JsonException
+     */
     public function selectWhere(
-        array $data = ['name' => '%something%', 'age' => '5%'],
+        array $where = [],
         bool $allowLike = false,
         bool $sortBy = true,
         string $sortByColumn = 'id',
         string $sortByType = 'string',
         bool $descending = true,
+        bool $whereIsAnd = true,
     ): array {
         $content = $this->getContent();
 
         $result = [];
 
         foreach ($content as $row) {
-            $addThisRow = true;
-            foreach ($data as $column => $value) {
+            $addThisRow = $whereIsAnd || $where === [];
+            foreach ($where as $column => $value) {
                 $matchType = match (true) {
                     !$allowLike                                                => 3,
                     str_starts_with($value, '%') && str_ends_with($value, '%') => 0,
@@ -230,15 +312,22 @@ class JsonDB
                 };
 
                 $match = match ($matchType) {
-                    0       => str_contains($row[$column], $value),
-                    1       => str_ends_with($row[$column], $value),
-                    2       => str_starts_with($row[$column], $value),
-                    default => $row[$column] === $value,
+                    0       => str_contains(mb_strtolower($row[$column] ?? ''), mb_strtolower($value)),
+                    1       => str_ends_with(mb_strtolower($row[$column] ?? ''), mb_strtolower($value)),
+                    2       => str_starts_with(mb_strtolower($row[$column] ?? ''), mb_strtolower($value)),
+                    default => mb_strtolower($row[$column] ?? '') === mb_strtolower($value),
                 };
 
-                if (!$match) {
-                    $addThisRow = false;
-                    break;
+                if ($whereIsAnd) {
+                    if (!$match) {
+                        $addThisRow = false;
+                        break;
+                    }
+                } else {
+                    if ($match) {
+                        $addThisRow = true;
+                        break;
+                    }
                 }
             }
 
@@ -259,13 +348,10 @@ class JsonDB
         return $result;
     }
 
-    /**
-     * @throws JsonException
-     */
     private function save(array $content): void
     {
         $filename = __DIR__ . '/../../tables/' . $this->table . '.json';
-
-        file_put_contents($filename, json_encode($content, JSON_THROW_ON_ERROR));
+        file_put_contents($filename, json_encode($content, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+        $this->clearCache();
     }
 }
