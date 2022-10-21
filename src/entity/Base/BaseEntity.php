@@ -8,7 +8,10 @@ namespace entity\Base;
 
 use Exception;
 use JsonException;
+use RuntimeException;
+use src\Client;
 use src\JsonDB;
+use src\Promise;
 
 abstract class BaseEntity
 {
@@ -16,10 +19,12 @@ abstract class BaseEntity
 
     /**
      * @param string $id
+     * @param string|null $tableName
+     * @throws Exception
      */
-    public function __construct(public readonly string $id)
+    public function __construct(public readonly string $id, string $tableName = null)
     {
-        $tableName    = self::getEntityName();
+        $tableName  ??= self::getEntityName();
         $this->jsonDB = new JsonDB($tableName);
         $this->load();
     }
@@ -65,7 +70,6 @@ abstract class BaseEntity
     {
         return (new static(''))->getTable();
     }
-
 
     /**
      * @return array
@@ -142,29 +146,38 @@ abstract class BaseEntity
         return new static($identifier ?? 'null');
     }
 
-    public function save(): void
+    /**
+     * @throws JsonException
+     */
+    public function save(bool $useQueue = true): Promise
     {
+        if ($useQueue) {
+            return (new Client())->add(self::getEntityName(), $this->toArray());
+        }
+
         if ($this->id === 'null') {
-            throw new \Exception('Empty id cannot be saved to database.');
+            throw new RuntimeException('Empty id cannot be saved to database.');
         }
 
         if (method_exists($this, 'validate')) {
             if (!$this->validate()) {
-                throw new \Exception('Validation failed.');
+                throw new RuntimeException('Validation failed.');
             }
         }
 
         try {
             $this->jsonDB->changeSelect('id', $this->id, $this->toArray());
         } catch (JsonException $e) {
-            throw new \Exception($e->getMessage());
+            throw new RuntimeException($e->getMessage());
         }
 
         $this->load();
+        return new Promise(uniqid(true, true));
     }
 
     /**
      * @return void
+     * @throws JsonException
      */
     public function delete(): void
     {
@@ -192,9 +205,6 @@ abstract class BaseEntity
         }
 
         foreach ($content as $column => $data) {
-            if (!property_exists($this, $column)) {
-                throw new \Exception('Column ' . $column . ' does not exist in ' . static::class);
-            }
             if ($column === 'id') {
                 continue;
             }

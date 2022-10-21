@@ -44,6 +44,33 @@ class JsonDB
     }
 
     /**
+     * @param string $server
+     * @param array $data
+     * @return void
+     * @throws JsonException
+     */
+    public function sendToServer(string $server, array $data): void
+    {
+        $table = $this->table;
+
+        // The server accepts method, table and data via JSON POST
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $server);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(
+            [
+                'method' => 'POST',
+                'table'  => $table,
+                'data'   => $data,
+            ], JSON_THROW_ON_ERROR
+        )
+        );
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $server_output = curl_exec($ch);
+        curl_close($ch);
+    }
+
+    /**
      * @param string $column
      * @param array $data
      * @param bool $descending
@@ -138,6 +165,13 @@ class JsonDB
         $this->add($idCol, $idVal, $data);
     }
 
+    /**
+     * @param string $idCol
+     * @param string $idVal
+     * @param array $data
+     * @return void
+     * @throws JsonException
+     */
     public function add(string $idCol, string $idVal, array $data): void
     {
         $data[$idCol] = $idVal;
@@ -237,6 +271,11 @@ class JsonDB
         return [];
     }
 
+    /**
+     * @param string ...$ids
+     * @return void
+     * @throws JsonException
+     */
     public function deleteCertain(string ...$ids): void
     {
         $content = $this->load();
@@ -352,6 +391,11 @@ class JsonDB
         return $result;
     }
 
+    /**
+     * @param array $content
+     * @return void
+     * @throws JsonException
+     */
     private function save(array $content): void
     {
         $filename = __DIR__ . '/../tables/' . $this->table . '.json';

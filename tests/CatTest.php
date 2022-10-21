@@ -7,6 +7,9 @@ use src\entity\Example\CatEntity;
 
 class CatTest extends TestCase
 {
+    /**
+     * @throws \JsonException
+     */
     public function testCat(): void
     {
         $cat = CatEntity::create(uniqid(true, true));
@@ -15,7 +18,7 @@ class CatTest extends TestCase
         $cat->breed = 'Persian';
         $cat->color = 'Black';
         $cat->owner = 'John Doe';
-        $cat->save();
+        $cat->save()->wait();
 
         self::assertTrue($cat->exists());
         self::assertSame(0, $cat->getAge());
