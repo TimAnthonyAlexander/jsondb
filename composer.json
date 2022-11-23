@@ -10,7 +10,7 @@
     },
     "scripts": {
         "test": "php vendor/bin/phpunit tests",
-        "start-server": "screen -dmS json-db php server/server.php"
+        "start-server": "screen -dmS json-db php scripts/server.php"
     },
     "authors": [
         {
