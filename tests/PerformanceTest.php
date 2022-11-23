@@ -24,7 +24,7 @@ class PerformanceTest extends TestCase
             $cat->breed = 'Persian';
             $cat->color = 'Black';
             $cat->owner = 'John Doe';
-            $cat->save()->wait();
+            $cat->save();
             $temp[] = $cat->id;
             $iterations++;
         }
@@ -50,7 +50,7 @@ class PerformanceTest extends TestCase
             $dog->breed = 'Poodle';
             $dog->color = 'White';
             $dog->owner = 'John Doe';
-            $dog->save()->wait();
+            $dog->save();
             $temp[] = $dog->id;
             $iterations++;
         }
@@ -58,7 +58,5 @@ class PerformanceTest extends TestCase
         $dog->deleteCertain(...$temp);
 
         self::assertGreaterThan(0, $iterations);
-
-        print("Iterations: $iterations" . PHP_EOL);
     }
 }

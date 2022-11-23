@@ -2,9 +2,10 @@
 
 namespace src\entity\Example;
 
+use entity\Base\AbstractEntity;
 use entity\Base\BaseEntity;
 
-abstract class AnimalEntity extends BaseEntity
+abstract class AnimalEntity extends AbstractEntity
 {
     public string $name;
     public string $owner;

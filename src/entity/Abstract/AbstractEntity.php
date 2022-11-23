@@ -6,16 +6,18 @@
 
 namespace entity\Base;
 
+use backend\module\ProfilerService;
 use Exception;
 use JsonException;
 use RuntimeException;
 use src\Client;
+use src\JSDB;
 use src\JsonDB;
 use src\Promise;
 
-abstract class BaseEntity
+abstract class AbstractEntity
 {
-    protected JsonDB $jsonDB;
+    protected JSDB $jsdb;
 
     /**
      * @param string $id
@@ -25,7 +27,7 @@ abstract class BaseEntity
     public function __construct(public readonly string $id, string $tableName = null)
     {
         $tableName  ??= self::getEntityName();
-        $this->jsonDB = new JsonDB($tableName);
+        $this->jsdb = new JSDB($tableName, $id);
         $this->load();
     }
 
@@ -65,18 +67,11 @@ abstract class BaseEntity
 
     /**
      * @return array
+     * @throws JsonException
      */
     public static function getAll(): array
     {
-        return (new static(''))->getTable();
-    }
-
-    /**
-     * @return array
-     */
-    public function getTable(): array
-    {
-        return $this->jsonDB->getContent();
+        return (new static(''))->jsdb->readMerged();
     }
 
     /**
@@ -90,6 +85,7 @@ abstract class BaseEntity
      * @param bool $allowLike
      * @param bool $and
      * @return array
+     * @throws JsonException
      */
     public static function getPage(
         int $page = 1,
@@ -114,6 +110,7 @@ abstract class BaseEntity
      * @param bool $allowLike
      * @param bool $and
      * @return array
+     * @throws JsonException
      */
     public static function getOne(
         array $where = [],
@@ -146,42 +143,18 @@ abstract class BaseEntity
         return new static($identifier ?? 'null');
     }
 
-    /**
-     * @throws JsonException
-     */
-    public function save(bool $useQueue = true): Promise
+    public function save(): void
     {
-        if ($useQueue) {
-            return (new Client())->add(self::getEntityName(), $this->toArray());
-        }
-
-        if ($this->id === 'null') {
-            throw new RuntimeException('Empty id cannot be saved to database.');
-        }
-
-        if (method_exists($this, 'validate')) {
-            if (!$this->validate()) {
-                throw new RuntimeException('Validation failed.');
-            }
-        }
-
-        try {
-            $this->jsonDB->changeSelect('id', $this->id, $this->toArray());
-        } catch (JsonException $e) {
-            throw new RuntimeException($e->getMessage());
-        }
-
-        $this->load();
-        return new Promise(uniqid(true, true));
+        $this->jsdb->update($this->toArray());
     }
 
-    /**
+        /**
      * @return void
      * @throws JsonException
      */
     public function delete(): void
     {
-        $this->jsonDB->delete('id', $this->id);
+        $this->jsdb->delete('id', $this->id);
     }
 
     /**
@@ -189,7 +162,7 @@ abstract class BaseEntity
      */
     public function exists(): bool
     {
-        return $this->jsonDB->exists('id', $this->id);
+        return $this->jsdb->exists('id', $this->id);
     }
 
     /**
@@ -197,14 +170,17 @@ abstract class BaseEntity
      */
     protected function load(): void
     {
-        $this->jsonDB->clearCache();
-        $content = $this->jsonDB->get('id', $this->id, true);
+        $this->jsdb->loadFromDatabase();
+        $content = $this->jsdb->getData();
 
         if ($content === []) {
             return;
         }
 
         foreach ($content as $column => $data) {
+            if (!property_exists($this, $column)) {
+                continue;
+            }
             if ($column === 'id') {
                 continue;
             }
@@ -217,12 +193,16 @@ abstract class BaseEntity
      */
     public function deleteAll(): void
     {
-        $this->jsonDB->deleteAll();
+        $this->jsdb->deleteAll();
     }
 
     public function deleteCertain(string ...$ids): void
     {
-        $this->jsonDB->deleteCertain(...$ids);
+        // Foreach create a new JsonDB instance and delete the data
+        foreach ($ids as $id) {
+            $jsdb = new JSDB(self::getEntityName(), $id);
+            $jsdb->delete();
+        }
     }
 
     /**

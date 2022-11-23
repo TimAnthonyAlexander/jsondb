@@ -18,7 +18,7 @@ class CatTest extends TestCase
         $cat->breed = 'Persian';
         $cat->color = 'Black';
         $cat->owner = 'John Doe';
-        $cat->save()->wait();
+        $cat->save();
 
         self::assertTrue($cat->exists());
         self::assertSame(0, $cat->getAge());

@@ -15,7 +15,7 @@ class DogTest extends TestCase
         $dog->breed = 'Poodle';
         $dog->color = 'White';
         $dog->owner = 'John Doe';
-        $dog->save()->wait();
+        $dog->save();
 
         self::assertTrue($dog->exists());
         self::assertSame(0, $dog->getAge());
